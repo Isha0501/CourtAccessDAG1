@@ -23,7 +23,7 @@ This pipeline automatically scrapes Massachusetts court forms from mass.gov ever
 ```
 CourtAccessDAG1/
 ├── dags/
-│   ├── form_scraper_dag.py         # Airflow DAG — runs every Monday at 6am
+│   ├── form_scraper_dag.py         # Airflow DAG — runs every Monday at 6am UTC
 │   └── form_pretranslation_dag.py  # Placeholder — translation pipeline (coming soon)
 ├── scripts/
 │   ├── scrape_forms.py             # Core scraping logic and scenario handlers
@@ -31,7 +31,7 @@ CourtAccessDAG1/
 ├── tests/
 │   └── test_form_scraper.py        # 33 unit tests (all mocked, no real HTTP calls)
 ├── data/
-│   └── form_catalog.json           # Local catalog database (replaces Cloud SQL later)
+│   └── form_catalog.json           # Local catalog — 235 forms tracked
 ├── requirements.txt
 └── README.md
 ```
@@ -64,7 +64,12 @@ pip install "apache-airflow==3.1.7" \
 pip install -r requirements.txt
 ```
 
-### 5. Run the Tests
+### 5. Install Playwright Browser
+```bash
+python -m playwright install chromium
+```
+
+### 6. Run the Tests
 ```bash
 pytest tests/test_form_scraper.py -v
 ```
@@ -89,11 +94,41 @@ airflow standalone
 Visit `http://localhost:8080`. Password is in `airflow/simple_auth_manager_passwords.json.generated`.
 
 ### Trigger the DAG Manually
-In a second terminal (with venv active):
+In a second terminal (with venv active and AIRFLOW_HOME set):
 ```bash
 airflow dags unpause form_scraper_dag
 airflow dags trigger form_scraper_dag
 ```
+
+---
+
+## How the Scraper Works
+
+mass.gov renders court forms dynamically via JavaScript and blocks plain HTTP requests with 403 errors. The scraper uses **Playwright** (headless Chromium) to:
+
+1. Load each court department's form listing page in a real browser
+2. Scroll the page to trigger lazy-loaded content
+3. Extract all form links using the `ma__download-link__file-link` CSS class
+4. Sleep 60 seconds before downloading (to avoid rate limiting)
+5. Download PDFs in batches of 10 with 15 second sleeps between batches
+6. Use the browser's session/cookies for downloads so mass.gov doesn't block them
+
+### Court Departments Scraped (11 total)
+
+| Department | Forms Found |
+|---|---|
+| Appeals Court | 22 |
+| Boston Municipal Court | 34 |
+| District Court | 42 |
+| Housing Court | 14 |
+| Juvenile Court | 90 |
+| Land Court | 46 |
+| Superior Court | 30 |
+| Attorney Forms | 3 |
+| Criminal Matter Forms | 28 |
+| Criminal Records Forms | 6 |
+| Trial Court eFiling Forms | 5 |
+| **Total** | **320 found, 235 unique** |
 
 ---
 
@@ -110,7 +145,17 @@ All form metadata is stored in `data/form_catalog.json`. Each entry tracks:
 - `needs_human_review` — true until a court translator verifies the translation
 - `last_scraped_at` — timestamp of last check
 
-> **Note:** `data/form_catalog.json` is the local development database. This will be migrated to Cloud SQL on GCP in a later phase.
+> **Note:** `data/form_catalog.json` is the local development database. This will be migrated to Cloud SQL on GCP in a later phase. Downloaded PDFs are stored in `forms/` locally and will move to Google Cloud Storage (GCS) in production.
+
+---
+
+## Confirmed DAG Run
+
+The DAG was confirmed working on 2026-02-19:
+- **Duration:** 20 minutes 55 seconds
+- **Forms checked:** 235
+- **Result:** 235 no-change (catalog already populated from manual run)
+- **Schedule:** Every Monday at 6am UTC — next run 2026-02-23
 
 ---
 
@@ -118,9 +163,13 @@ All form metadata is stored in `data/form_catalog.json`. Each entry tracks:
 
 - [x] Form scraper DAG with 5-scenario classification
 - [x] SHA-256 content hashing and version tracking
-- [x] Unit tests with mocked HTTP calls
-- [ ] Fix real mass.gov URLs for court form pages
+- [x] Playwright-based scraping for JavaScript-rendered pages
+- [x] Batch download with sleep between batches (rate limit safe)
+- [x] 235 forms cataloged across 11 departments
+- [x] DAG confirmed running in Airflow — 20 min 55 sec duration
+- [x] Unit tests — 33 passing
 - [ ] Build `form_pretranslation_dag` (NLLB-200 translation pipeline)
 - [ ] Add DVC for data versioning
 - [ ] Migrate catalog storage to Cloud SQL on GCP
+- [ ] Migrate PDF storage to Google Cloud Storage (GCS)
 - [ ] Add Evidently AI drift monitoring
