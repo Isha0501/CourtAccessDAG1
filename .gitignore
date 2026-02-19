@@ -1,0 +1,9 @@
+venv/
+airflow/
+__pycache__/
+*.pyc
+.pytest_cache/
+forms/
+*.db
+*.db-shm
+*.db-wal
