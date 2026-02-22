@@ -1,0 +1,18 @@
+{
+  "valid": true,
+  "total_forms": 71,
+  "active_forms": 71,
+  "archived_forms": 0,
+  "total_versions": 71,
+  "forms_with_es": 9,
+  "forms_with_pt": 9,
+  "unique_divisions": 3,
+  "division_breakdown": {
+    "Appeals Court": 22,
+    "District Court": 42,
+    "Housing Court": 14
+  },
+  "missing_pdfs": 0,
+  "errors": 0,
+  "warnings": 0
+}

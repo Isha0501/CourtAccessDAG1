@@ -1,9 +1,41 @@
-venv/
+# ── Airflow ──
+logs/
+plugins/
+config/
 airflow/
+
+# ── Downloaded PDFs (tracked by DVC, not Git) ──
+/forms
+
+# ── DVC local remote storage ──
+/dvc_storage
+
+# ── DVC-tracked data files (pointer .dvc files ARE pushed) ──
+/dags/data/form_catalog.json
+
+# ── Generated runtime reports ──
+/dags/data/anomaly_report.json
+/dags/data/preprocess_report.json
+/dags/data/bias_report.json
+/dags/data/prev_catalog_metrics.json
+
+# ── Python ──
 __pycache__/
-*.pyc
-.pytest_cache/
-forms/
-*.db
-*.db-shm
-*.db-wal
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+.venv/
+venv/
+
+# ── Environment ──
+.env
+
+# ── IDE ──
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store

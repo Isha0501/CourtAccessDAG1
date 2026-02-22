@@ -1,0 +1,38 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# DVC Pipeline Definition for CourtAccess AI — Form Scraper
+#
+# NOTE: This pipeline runs inside Airflow (Docker Compose), NOT via 'dvc repro'.
+# The Airflow DAG (form_scraper_dag.py) executes these stages as tasks and
+# calls 'dvc add' + 'dvc push' automatically in the final task.
+#
+# This dvc.yaml documents the data lineage for DVC tracking and metrics.
+# ══════════════════════════════════════════════════════════════════════════════
+
+stages:
+  # ── Stage 1: Scrape court forms from mass.gov ──────────────────────────────
+  # Airflow task: scrape_and_classify
+  # Downloads PDFs from 11 mass.gov department pages, classifies into
+  # 5 scenarios (new/updated/deleted/renamed/no-change), updates catalog.
+  scrape_forms:
+    cmd: python -c "import sys; sys.path.insert(0, 'dags'); from src.scrape_forms import run_scrape; run_scrape()"
+    deps:
+      - dags/src/scrape_forms.py
+    outs:
+      - dags/data/form_catalog.json:
+          cache: true
+      - forms:
+          cache: true
+          persist: true
+
+  # ── Stage 2: Validate catalog data ─────────────────────────────────────────
+  # Airflow task: validate_catalog
+  # Checks required fields, data types, duplicate IDs, missing PDFs.
+  # Outputs metrics are tracked by DVC (form counts, translations, errors).
+  validate_catalog:
+    cmd: python scripts/validate_catalog.py
+    deps:
+      - dags/data/form_catalog.json
+      - scripts/validate_catalog.py
+    metrics:
+      - dags/data/catalog_metrics.json:
+          cache: false
